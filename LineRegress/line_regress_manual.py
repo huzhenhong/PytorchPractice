@@ -7,6 +7,7 @@ __author__ = "huluwa-2020-04-08"
 
 import torch
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def make_dataset(samples_num, weights, bias):
@@ -104,6 +105,7 @@ bias.requires_grad_(requires_grad=True)
 
 epoch_loss = []     # 用来统计每个epoch的loss
 for epoch in range(epoch_nums):
+    step_loss = []  # 没迭代一个batch的loss
     for x, y in read_dataset(batch_size, features, labels):
         prid = calclate(x, weights, bias)       # 前向计算
         loss = squared_loss(prid, y).sum()      # 求损失和
@@ -114,10 +116,19 @@ for epoch in range(epoch_nums):
         weights.grad.data.zero_()
         bias.grad.data.zero_()
 
-        epoch_loss.append(float(loss))  # 记录当前loss
+        step_loss.append(float(loss))  # 记录当前loss
 
     # 每个epoch结束时打印统计训练信息
-    print('epoch {}, loss {}'.format(epoch+1, np.mean(epoch_loss)))
+    print('epoch {}, loss {}'.format(epoch+1, np.mean(step_loss)))
+    epoch_loss.append(np.mean(step_loss))
 
 print(weights_true, weights)
 print(bias_true, bias)
+
+# 绘制训练结果
+plt.plot([e+1 for e in range(epoch_nums)], epoch_loss)
+plt.xlabel('epoch')
+plt.ylabel('loss')
+# plt.xticks()
+# plt.yticks()
+plt.show()
