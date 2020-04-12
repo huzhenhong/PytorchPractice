@@ -83,8 +83,8 @@ def sgd(params, lr, batch_size):
 
 # 生产数据集
 sample_nums = 1000
-weights_true = [2, -3.4]
-bias_true = 4.2
+weights_true = [1.2, -2.3]
+bias_true = 4.5
 
 features, labels = make_dataset(sample_nums, weights_true, bias_true)
 
