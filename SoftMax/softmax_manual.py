@@ -134,7 +134,7 @@ def train(train_iter, test_iter, num_epochs, batch_size, lr, params):
                 param.grad.data.zero_()
 
             # 统计训练信息
-            train_acc_count += (predict.argmax(dim=1) == labels).sum().item()
+            train_acc_count += (predict.argmax(dim=1) == labels).float().sum().item()
             train_loss_sum += loss.item()
 
         train_acc = train_acc_count / train_iter.sampler.num_samples
@@ -144,7 +144,6 @@ def train(train_iter, test_iter, num_epochs, batch_size, lr, params):
 
         print('epoch %d, train loss %.4f accuracy %.4f, valid loss %.4f accuracy %.4f' %
               (epoch+1, train_loss, train_acc, valid_loss, valid_acc))
-
 
 
 batch_size = 256
@@ -157,8 +156,8 @@ weights = torch.tensor(np.random.normal(0, 0.01, (num_inputs, num_outputs)), dty
 bias = torch.zeros(num_outputs, dtype=torch.float32)
 
 # 记录权重和偏置的梯度
-weights.requires_grad_(requires_grad=True)
-bias.requires_grad_(requires_grad=True)
+weights.requires_grad_(True)
+bias.requires_grad_(True)
 
 train_iter, test_iter = create_dataset_iter(batch_size)
 
@@ -200,7 +199,7 @@ def test(test_iter):
     :param test_iter:
     :return:
     """
-    features, labels = iter(test_iter).next()
+    features, labels = next(iter(test_iter))
     features = features[: 10]
     labels = labels[: 10]
     true_text_labels = get_fashion_mnist_text_labels(labels)
@@ -209,5 +208,6 @@ def test(test_iter):
     titles = [true + '\n' + pred for true, pred in zip(true_text_labels, pred_text_lables)]
 
     show_fashion_mnist(features, titles)
+
 
 test(test_iter)

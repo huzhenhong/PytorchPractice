@@ -8,6 +8,7 @@ __author__ = "huluwa-2020-04-12"
 import sys
 import torch
 import torchvision
+from torch.utils import data
 import matplotlib.pyplot as plt
 from collections import OrderedDict
 
@@ -91,7 +92,7 @@ def train(net, train_iter, test_iter, num_epochs, loss, optimizer):
             optimizer.step()
 
             # 统计训练信息
-            train_acc_count += (predict.argmax(dim=1) == labels).sum().item()
+            train_acc_count += (predict.argmax(dim=1) == labels).float().sum().item()
             train_loss_sum += los.item()
 
         train_acc = train_acc_count / train_iter.sampler.num_samples
@@ -192,7 +193,7 @@ def test(net, test_iter):
     :param test_iter:
     :return:
     """
-    features, labels = iter(test_iter).next()
+    features, labels = next(iter(test_iter))
     features = features[: 10]
     labels = labels[: 10]
     true_text_labels = get_fashion_mnist_text_labels(labels)

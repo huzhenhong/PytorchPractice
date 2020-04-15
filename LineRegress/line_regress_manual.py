@@ -44,7 +44,7 @@ def read_dataset(batch_size, features, labels):
 
     for i in range(0, samples_nums, batch_size):
         index = index_list[i: min(i+batch_size, samples_nums)]  # 最后一次可能不足batch_size
-        j = torch.LongTensor(index)
+        j = torch.tensor(index)  # list转tensor
         yield features.index_select(0, j), labels.index_select(0, j)
 
 
@@ -99,8 +99,8 @@ weights = torch.tensor(np.random.normal(0, 0.01, (len(weights_true), 1)), dtype=
 bias = torch.zeros(1, dtype=torch.float32)
 
 # 监测梯度，以便训练
-weights.requires_grad_(requires_grad=True)
-bias.requires_grad_(requires_grad=True)
+weights.requires_grad_()  # 默认为True
+bias.requires_grad_()
 
 
 epoch_loss = []     # 用来统计每个epoch的loss
@@ -116,7 +116,7 @@ for epoch in range(epoch_nums):
         weights.grad.data.zero_()
         bias.grad.data.zero_()
 
-        step_loss.append(float(loss))  # 记录当前loss
+        step_loss.append(loss.item())  # 记录当前loss
 
     # 每个epoch结束时打印统计训练信息
     print('epoch {}, loss {}'.format(epoch+1, np.mean(step_loss)))

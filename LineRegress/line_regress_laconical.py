@@ -7,6 +7,7 @@ __author__ = "huluwa-2020-04-09"
 
 import torch
 import numpy as np
+from torch.utils import data
 import matplotlib.pyplot as plt
 
 
@@ -45,8 +46,8 @@ epoch_nums = 10
 batch_size = 32
 
 # 定义数据读取迭代
-dataset = torch.utils.data.TensorDataset(features, labels)  # 组合特征和标签
-read_data_iter = torch.utils.data.DataLoader(dataset, batch_size, shuffle=True)  # 小批量读取随机打乱的数据
+dataset = data.TensorDataset(features, labels)  # 组合特征和标签
+read_data_iter = data.DataLoader(dataset, batch_size, shuffle=True)  # 小批量读取随机打乱的数据
 
 # 定义模型
 net = torch.nn.Sequential(
@@ -68,6 +69,7 @@ print(optimizer)
 # 训练模型
 epoch_loss = []
 for epoch in range(epoch_nums):
+    step_loss = []
     for x, y in read_data_iter:
         out = net(x)            # 前项计算
         loss = mseloss(out, y.view(-1, 1))  # 计算均方差损失
@@ -75,9 +77,12 @@ for epoch in range(epoch_nums):
         loss.backward()         # 反向传播计算梯度
         optimizer.step()        # 更新参数
 
+        step_loss.append(loss.item())
+
     # 打印每个epoch的训练结果
-    print("epoch %d, loss: %.6f" % (epoch+1, loss.item()))
-    epoch_loss.append(loss.item())
+    mean_loss = float(np.mean(step_loss))
+    print("epoch %d, loss: %.6f" % (epoch+1, mean_loss))
+    epoch_loss.append(mean_loss)
 
 print(weights_true, net[0].weight)
 print(bias_true, net[0].bias)
