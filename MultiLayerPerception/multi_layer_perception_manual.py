@@ -7,6 +7,7 @@ __author__ = "huzhenhong 2020-04-15"
 
 
 import sys
+import time
 import torch
 import torchvision
 import numpy as np
@@ -23,9 +24,14 @@ class MyMultiLayerPerception:
             num_inputs, num_outputs, num_hiddens, num_epochs, batch_size, lr
 
         # 初始化参数
-        self.weight_1 = torch.tensor(np.random.normal(0, 0.01, (self.num_inputs, self.num_hiddens)), dtype=torch.float).cuda()
+        self.weight_1 = torch.tensor(np.random.normal(0, 0.01, (self.num_inputs, self.num_hiddens)),
+                                     dtype=torch.float).cuda()
+
         self.bias_1 = torch.zeros(1, dtype=torch.float).cuda()
-        self.weight_2 = torch.tensor(np.random.normal(0, 0.01, (self.num_hiddens, self.num_outputs)), dtype=torch.float).cuda()
+
+        self.weight_2 = torch.tensor(np.random.normal(0, 0.01, (self.num_hiddens, self.num_outputs)),
+                                     dtype=torch.float).cuda()
+
         self.bias_2 = torch.zeros(self.num_outputs, dtype=torch.float).cuda()
 
         # 设定参数需要记录梯度
@@ -56,7 +62,7 @@ class MyMultiLayerPerception:
         if sys.platform.startswith('win'):
             num_workers = 4  # 0表示不适用额外进程读取数据
         else:
-            num_workers = 0
+            num_workers = 4
 
         train_iter = torch.utils.data.DataLoader(fashion_mnist_trian,
                                                  batch_size=self.batch_size,
@@ -122,6 +128,8 @@ class MyMultiLayerPerception:
             train_acc_count = 0
             train_loss_sum = 0
 
+            start = time.time()
+
             for features, labels in train_iter:
                 features = features.cuda()
                 labels = labels.cuda()
@@ -144,7 +152,7 @@ class MyMultiLayerPerception:
             # 验证准确率
             valid_acc, valid_loss = self.evaluate_accuracy(test_iter)
 
-            print(f'epoch {epoch+1}, '
+            print(f'epoch {epoch+1}, cost time {time.time() - start:<.4f}, '
                   f'train loss {train_loss:<.4f} accuracy {train_acc:<.4f}, '
                   f'valid loss {valid_loss:<.4f} accuracy {valid_acc:<.4f}')
 
@@ -157,32 +165,36 @@ class MyMultiLayerPerception:
 
     def draw_result(self, train_loss, train_acc, valid_loss, valid_acc):
         epochs = [e + 1 for e in range(self.num_epochs)]
-        plt.figure(figsize=(12, 12))
+
+        plt.figure(figsize=(24, 12))
 
         plt.subplot(121)
+        plt.title('loss')
         plt.plot(epochs, train_loss, color='b', marker='.', label='train_loss')
-        plt.plot(epochs, train_acc, color='r', marker='.', label='train_acc')
+        plt.plot(epochs, valid_loss, color='r', marker='.', label='valid_loss')
         plt.xlabel('epoch')
         plt.ylabel('loss')
-        plt.ylim([0, 1])
+        # plt.ylim([0, 1])
+        plt.legend()
 
         plt.subplot(122)
-        plt.plot(epochs, valid_loss, color='b', marker='.', label='valid_loss')
+        plt.title('accuracy')
+        plt.plot(epochs, train_acc, color='b', marker='.', label='train_acc')
         plt.plot(epochs, valid_acc, color='r', marker='.', label='valid_acc')
         plt.xlabel('epoch')
         plt.ylabel('accuracy')
         plt.ylim([0, 1])
+        plt.legend()
+
         plt.show()
 
 
 if __name__ == '__main__':
     # 主逻辑
-    multiLayerPerception = MyMultiLayerPerception(784, 10, 256, 10, 128, 0.01)
+    multiLayerPerception = MyMultiLayerPerception(784, 10, 1024, 10, 64, 0.05)
 
     train_iter, test_iter = multiLayerPerception.create_dataset_iter()
 
     train_loss, train_acc, valid_loss, valid_acc = multiLayerPerception.train(train_iter, test_iter)
 
     multiLayerPerception.draw_result(train_loss, train_acc, valid_loss, valid_acc)
-
-
