@@ -79,13 +79,15 @@ class MyMultiLayerPerception:
         """
         acc_sum, loss_sum = 0, 0
 
-        for features, labels in test_iter:
-            features = features.cuda()
-            labels = labels.cuda()
+        # 验证时不需要计算梯度
+        with torch.no_grad():
+            for features, labels in test_iter:
+                features = features.cuda()
+                labels = labels.cuda()
 
-            predict = self.net(features.view(-1, self.num_inputs))
-            loss_sum += self.loss(predict, labels).sum().item()
-            acc_sum += (predict.argmax(dim=1) == labels).float().sum().item()
+                predict = self.net(features.view(-1, self.num_inputs))
+                loss_sum += self.loss(predict, labels).sum().item()
+                acc_sum += (predict.argmax(dim=1) == labels).float().sum().item()
 
         return acc_sum / test_iter.sampler.num_samples, loss_sum / test_iter.sampler.num_samples
 
