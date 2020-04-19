@@ -44,12 +44,12 @@ class MyMultiLayerPerception:
         :return:
         """
         # ToTensor默认图像数据类型是uint8，会自动将像素值缩放到(0.0, 1.0),图片shape为CxHxW
-        fashion_mnist_trian = torchvision.datasets.FashionMNIST(root='dataset',
+        fashion_mnist_trian = torchvision.datasets.FashionMNIST(root='../dataset/fashion-mnist',
                                                                 train=True,
                                                                 download=True,
                                                                 transform=torchvision.transforms.ToTensor())
 
-        fashion_mnist_test = torchvision.datasets.FashionMNIST(root='dataset',
+        fashion_mnist_test = torchvision.datasets.FashionMNIST(root='../dataset/fashion-mnist',
                                                                train=False,
                                                                download=True,
                                                                transform=torchvision.transforms.ToTensor())
