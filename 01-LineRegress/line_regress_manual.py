@@ -1,134 +1,94 @@
-# !usr/bin/python
-# -*_ coding:utf-8 -*-
+# !usr/bin/env python
+# -*- coding:utf-8 -*-
 
-"""A line regress implement by hands"""
-
-__author__ = "huluwa-2020-04-08"
+'''
+ Description  : A line regress implement by hands
+ Version      : 1.0
+ Author       : huzhenhong
+ Date         : 2020-11-21 16:53:18
+ LastEditors  : huzhenhong
+ LastEditTime : 2020-12-01 00:09:51
+ FilePath     : \\PytorchPractice\\01-LineRegress\\line_regress_manual.py
+ Copyright (C) 2020 huzhenhong. All rights reserved.
+'''
 
 import torch
+import time
 import numpy as np
-import matplotlib.pyplot as plt
 
 
-def make_dataset(samples_num, weights, bias):
-    """
-    制作数据集
-    :param samples_num:
-    :param weights:
-    :param bias:
-    :return:
-    """
-    features = torch.from_numpy(np.random.normal(0, 1, (samples_num, len(weights))).astype(np.float32))
-    labels = torch.zeros(samples_num)
+class LineRegressManual:
+    def __init__(self, sample_num, weight_true, bias_true, epoch_num, batch_size, lr):
+        self._sample_num = sample_num
+        self._weight_true = weight_true
+        self._bias_true = bias_true
+        self._epoch_num = epoch_num
+        self._batch_size = batch_size
+        self._lr = lr
 
-    for i, w in enumerate(weights):
-        labels += w * features[:, i]
+        self.__init_params()
 
-    labels += bias  # 广播机制
-    labels += torch.from_numpy(np.random.normal(0, 0.01, samples_num))  # 添加噪声
+    def __init_params(self):
+        self._weight_pred = torch.tensor(np.random.normal(0, 0.01, (len(self._weight_true), 1)), dtype=torch.float32)
+        self._bias_pred = torch.zeros(1)
 
-    return features, labels
+        # 参数默认为True
+        self._weight_pred.requires_grad_()
+        self._bias_pred.requires_grad_()
 
+    def read_dataset(self, features, labels):
+        # 创建一张索引表，并将其随机打乱
+        index_list = list(range(self._sample_num))
+        np.random.shuffle(index_list)
 
-def read_dataset(batch_size, features, labels):
-    """
-    批量读取数据
-    :param batch_size:
-    :param features:
-    :param labels:
-    :return:
-    """
-    samples_nums = len(features)
-    index_list = list(range(samples_nums))  # 创建一张索引表
-    np.random.shuffle(index_list)  # 随机打乱
+        for i in range(0, self._sample_num, self._batch_size):
+            # 最后一次可能不足batch_size
+            index = index_list[i:min(i + self._batch_size, self._sample_num)]
+            # list转tensor
+            j = torch.tensor(index)
+            yield features.index_select(0, j), labels.index_select(0, j)
 
-    for i in range(0, samples_nums, batch_size):
-        index = index_list[i: min(i+batch_size, samples_nums)]  # 最后一次可能不足batch_size
-        j = torch.tensor(index)  # list转tensor
-        yield features.index_select(0, j), labels.index_select(0, j)
+    def calclate(self, X, W, b):
+        return torch.mm(X, W) + b
 
+    def squared_loss(self, pred, label):
+        # 除以2是为了简化求导公式
+        return (pred - label.view(pred.size())) ** 2 / 2
 
-def calclate(x, w, b):
-    """
-    前向计算
-    :param x:
-    :param w:
-    :param b:
-    :return:
-    """
-    return torch.mm(x, w) + b
+    def sgd(self, params):
+        for param in params:
+            # 因为损失是求的累加，反向传播求导的结果也是累加的
+            # 每一个参数进行更新时需要先求下平均梯度
+            param.data -= self._lr * param.grad / self._batch_size
 
+    def train(self, features, labels):
+        epoch_loss = []
+        for epoch in range(self._epoch_num):
+            start_time = time.time()
+            batch_avg_loss = []
 
-def squared_loss(prid, label):
-    """
-    求均方误差
-    :param prid:
-    :param label:
-    :return:
-    """
-    return (prid - label.view(prid.size())) ** 2 / 2
+            for X, Y in self.read_dataset(features, labels):
+                pred = self.calclate(X, self._weight_pred, self._bias_pred)
+                # 求损失累和
+                loss_sum = self.squared_loss(pred, Y).sum()
+                # 反向传播求梯度，PyTorch会自动根据输入和前向计算构建计算图
+                # 也就是说所有的计算都会被track，要是某个tensor的requires_grad_置为True
+                # 就表示backward的时对其进行求导
+                # 这里的损失是累加的（求损失是计算、累加也是计算，最后都会被计算图所记录），所以对应的weight梯度也是累加的
+                # 所以更新梯度的时候需要先求下平均
+                loss_sum.backward()
+                # 小批量随机梯度下降更新模型
+                self.sgd([self._weight_pred, self._bias_pred])
 
+                # 清空梯度信息
+                self._weight_pred.grad.data.zero_()
+                self._bias_pred.grad.data.zero_()
 
-def sgd(params, lr, batch_size):
-    """
-    随机梯度下降
-    :param params:
-    :param lr:
-    :param batch_size:
-    :return:
-    """
-    for param in params:
-        param.data -= lr * param.grad / batch_size  # 批量对每一个参数进行更新
+                # 记录当前batch的平均loss
+                batch_avg_loss.append(loss_sum.item() / self._batch_size)
 
+            mean_loss = float(np.mean(batch_avg_loss))
+            print('epoch {}, cost time {}, loss {}'.format(epoch+1, time.time() - start_time, mean_loss))
+            epoch_loss.append(mean_loss)
 
-# 生产数据集
-sample_nums = 1000
-weights_true = [1.2, -2.3]
-bias_true = 4.5
-
-features, labels = make_dataset(sample_nums, weights_true, bias_true)
-
-
-# 初始化超参数
-lr = 0.03
-epoch_nums = 10
-batch_size = 32
-
-# 初始化权重和偏置
-weights = torch.tensor(np.random.normal(0, 0.01, (len(weights_true), 1)), dtype=torch.float32)
-bias = torch.zeros(1, dtype=torch.float32)
-
-# 监测梯度，以便训练
-weights.requires_grad_()  # 默认为True
-bias.requires_grad_()
-
-
-epoch_loss = []     # 用来统计每个epoch的loss
-for epoch in range(epoch_nums):
-    step_loss = []  # 没迭代一个batch的loss
-    for x, y in read_dataset(batch_size, features, labels):
-        prid = calclate(x, weights, bias)       # 前向计算
-        loss = squared_loss(prid, y).sum()      # 求损失和
-        loss.backward()                         # 反向传播求梯度
-        sgd([weights, bias], lr, batch_size)    # 小批量随机梯度下降更新模型
-
-        # 清空梯度信息
-        weights.grad.data.zero_()
-        bias.grad.data.zero_()
-
-        step_loss.append(loss.item())  # 记录当前loss
-
-    # 每个epoch结束时打印统计训练信息
-    print('epoch {}, loss {}'.format(epoch+1, np.mean(step_loss)))
-    epoch_loss.append(np.mean(step_loss))
-
-print(weights_true, weights)
-print(bias_true, bias)
-
-# 绘制训练结果
-plt.plot([e+1 for e in range(epoch_nums)], epoch_loss)
-plt.xlabel('epoch')
-plt.ylabel('loss')
-# plt.xticks()
-# plt.yticks()
-plt.show()
+        return epoch_loss, self._weight_pred, self._bias_pred

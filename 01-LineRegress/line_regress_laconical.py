@@ -1,93 +1,73 @@
-# !usr/bin/python
-# -*_ coding:utf-8 -*-
+# !usr/bin/env python
+# -*- coding:utf-8 -*-
 
-"""A line regress implement by pytorch high api"""
-
-__author__ = "huluwa-2020-04-09"
+'''
+ Description  : A line regress implement by pytorch high api
+ Version      : 1.0
+ Author       : huzhenhong
+ Date         : 2020-11-21 16:53:18
+ LastEditors  : huzhenhong
+ LastEditTime : 2020-12-01 16:40:42
+ FilePath     : \\PytorchPractice\\01-LineRegress\\line_regress_laconical.py
+ Copyright (C) 2020 huzhenhong. All rights reserved.
+'''
 
 import torch
+import time
 import numpy as np
 from torch.utils import data
-import matplotlib.pyplot as plt
 
 
-def make_dataset(samples_num, weights, bias):
-    """
-    制作数据集
-    :param samples_num:
-    :param weights:
-    :param bias:
-    :return:
-    """
-    features = torch.from_numpy(np.random.normal(0, 1, (samples_num, len(weights))).astype(np.float32))
-    labels = torch.zeros(samples_num)
+class LineRegressLaconical():
+    def __init__(self, sample_num, weight_true, bias_true, epoch_num, batch_size, lr):
+        self._sample_num = sample_num
+        self._weight_true = weight_true
+        self._bias_true = bias_true
+        self._epoch_num = epoch_num
+        self._batch_size = batch_size
+        self._lr = lr
 
-    for i, w in enumerate(weights):
-        labels += w * features[:, i]
+        self.__init_net(len(self._weight_true))
 
-    labels += bias  # 广播机制
-    labels += torch.from_numpy(np.random.normal(0, 0.01, samples_num))  # 添加噪声
+    def __init_net(self, input_size):
+        self._net = torch.nn.Sequential(
+            torch.nn.Linear(input_size, 1)
+            )
 
-    return features, labels
+        # 框架已默认进行了初始化
+        # # 初始化模型参数
+        # torch.nn.init.normal_(self._net[0].weight, mean=0, std=0.01)
+        # torch.nn.init.constant_(self._net[0].bias, val=0)
+        # # self._net[0].bias.data.fill_(0)
 
+        # 定义损失函数
+        self._mseloss = torch.nn.MSELoss()
 
-# 生产数据集
-sample_nums = 1000
-weights_true = [2, -3.4]
-bias_true = 4.2
+        # 定义优化算法
+        self._optimizer = torch.optim.SGD(self._net.parameters(), lr=self._lr)
 
-features, labels = make_dataset(sample_nums, weights_true, bias_true)
+    def train(self, features, labels):
+        # 组合特征和标签
+        dataset = data.TensorDataset(features, labels)
+        # 小批量读取随机打乱的数据
+        read_data_iter = data.DataLoader(dataset, self._batch_size, shuffle=True)
 
-##################################################################
+        epoch_loss = []
 
-# 初始化超参数
-lr = 0.03
-epoch_nums = 10
-batch_size = 32
+        for epoch in range(self._epoch_num):
+            start_time = time.time()
 
-# 定义数据读取迭代
-dataset = data.TensorDataset(features, labels)  # 组合特征和标签
-read_data_iter = data.DataLoader(dataset, batch_size, shuffle=True)  # 小批量读取随机打乱的数据
+            batch_loss = []
+            for X, Y in read_data_iter:
+                pred = self._net(X)
+                loss = self._mseloss(pred, Y.view(-1, 1))
+                self._optimizer.zero_grad()
+                loss.backward()
+                self._optimizer.step()
+                batch_loss.append(loss.item())
 
-# 定义模型
-net = torch.nn.Sequential(
-    torch.nn.Linear(len(weights_true), 1)
-    )
+            mean_loss = float(np.mean(batch_loss))
+            print('epoch {}, cost time {}, loss {}'.format(epoch+1, time.time() - start_time, mean_loss))
+            epoch_loss.append(mean_loss)
 
-# 初始化模型参数
-torch.nn.init.normal_(net[0].weight, mean=0, std=0.01)
-torch.nn.init.constant_(net[0].bias, val=0)
-# net[0].bias.data.fill_(0)
-
-# 定义损失函数
-mseloss = torch.nn.MSELoss()
-
-# 定义优化算法
-optimizer = torch.optim.SGD(net.parameters(), lr=lr)
-print(optimizer)
-
-# 训练模型
-epoch_loss = []
-for epoch in range(epoch_nums):
-    step_loss = []
-    for x, y in read_data_iter:
-        out = net(x)            # 前项计算
-        loss = mseloss(out, y.view(-1, 1))  # 计算均方差损失
-        optimizer.zero_grad()   # 清空梯度，net.zero_grad()
-        loss.backward()         # 反向传播计算梯度
-        optimizer.step()        # 更新参数
-
-        step_loss.append(loss.item())
-
-    # 打印每个epoch的训练结果
-    mean_loss = float(np.mean(step_loss))
-    print("epoch %d, loss: %.6f" % (epoch+1, mean_loss))
-    epoch_loss.append(mean_loss)
-
-print(weights_true, net[0].weight)
-print(bias_true, net[0].bias)
-
-plt.plot([e+1 for e in range(epoch_nums)], epoch_loss)
-plt.xlabel('epoch')
-plt.ylabel('loss')
-plt.show()
+        return epoch_loss, self._net[0].weight, self._net[0].bias
